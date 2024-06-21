@@ -19,9 +19,9 @@ double x_fin, y_fin, z_fin;
 // mekf variable delcaration
 Matrix att_triad(3, 3);
 Quaternion qo, q_prop;
-Vector b_w(0.0, 0.0, 0.0);
-Vector b_f(0.0, 0.0, 0.0);
-Vector b_m(0.0, 0.0, 0.0);
+Vector gyro_bias(0.0, 0.0, 0.0);
+Vector acc_bias(0.0, 0.0, 0.0);
+Vector magneto_bias(0.0, 0.0, 0.0);
 
 double temp[15][15];
 // in gain
@@ -36,9 +36,11 @@ Vector accel_g(0, 0, -1.0);
 Vector mag_fixed(1.0, 0, 0);
 // in update
 Matrix P_update(12, 12);
+Matrix P_prop = 0.10 * identity(12);
 Matrix delta_x(12, 1);
 Quaternion q_est;
 
+Quaternion q_ref;
 // in propagation
 Vector w_est;
 Vector w_measured;
@@ -55,7 +57,7 @@ double sigma_bf = 0.001;
 double sigma_bm = 0.2;
 String message;
 
-void mag_calibration()
+void QMCmagneto()
 {
   float x_value;
   float y_value;
@@ -88,6 +90,8 @@ void mag_calibration()
   x_fin = a1 * x_ab + a2 * y_ab + a3 * z_ab;
   y_fin = bb1 * x_ab + bb2 * y_ab + bb3 * z_ab;
   z_fin = c1 * x_ab + c2 * y_ab + c3 * z_ab;
+  x_fin = -x_fin;
+  z_fin = -z_fin;
 }
 // Obtaining Angular Velocity in Body Frame from IMU for propagation
 void imuOmega()
@@ -142,9 +146,6 @@ void triad(void)
   compass.read();
 
   // Return XYZ readings
-  y = (double)compass.getX();
-  x = -1.0 * (double)(compass.getY());
-  z = (double)compass.getZ();
 
   // read IMU
   imuAcceleration();
@@ -190,9 +191,10 @@ void setup()
   Wire.write(0x00);
   Wire.endTransmission();
   // get magnetometer initial values
+  xo = yo = zo = 0;
   for (int i = 0; i < 10; i++)
   {
-    mag_calibration();
+    QMCmagneto();
     xo = xo + x_fin;
     yo = yo + y_fin;
     zo = zo + z_fin;
@@ -229,7 +231,7 @@ void setup()
 
       imuAcceleration();
       imuOmega();
-      Total_acc = Total_acc + Vector(-9.8 * AccX, -9.8 * AccY, -9.8 * AccZ);
+      Total_acc = Total_acc + Vector(AccX, AccY, AccZ);
       Total_w = Total_w + Vector(RateP, RateQ, RateR);
       num--;
     }
@@ -237,19 +239,20 @@ void setup()
     Total_w = Total_w / 1000;
     for (int i = 0; i < 3; i++)
     {
-      b_w.matrix[i][0] = Total_w.matrix[i][0];
+      gyro_bias.matrix[i][0] = Total_w.matrix[i][0];
       // accel_g.matrix[i][0] = Total_acc.matrix[i][0];
     }
-    b_f = Total_acc - Vector(0.0, 0.0, -9.8);
-    // b_w.display();
+    acc_bias = Total_acc - Vector(0.0, 0.0, -1);
+    // gyro_bias.display();
     // delay(2000);
-    //  b_f.display();
+    //  acc_bias.display();
   }
 }
 
 void meas_update()
 {
   curr_time = millis();
+  attitude = q_prop.attitude_matrix();
   // dt = (curr_time - pre_time) * 0.001;
   dt = 0.1;
   // gain calculation
@@ -281,13 +284,14 @@ void meas_update()
 
   // Serial.println("H");
   // H.display();
-  K_gain = P_pre * H.transpose() * (H * P_pre * H.transpose() + R).inverse();
+  K_gain = P_prop * H.transpose() * (H * P_prop * H.transpose() + R).inverse();
   // Serial.println("Kalman Gain: ");
   // K_gain.display();
   //  update
   Matrix I = identity(12);
   // P_update = (I - K_gain * H) * P_pre * (I - K_gain*H).transpose() + K_gain*R*K_gain.transpose();
-  P_update = (I - K_gain * H) * P_pre;
+  P_update = (I - K_gain * H) * P_prop;
+  P_prop = P_update;
   // Serial.println("K_gain*H");
   //(K_gain*H).display();
   // Serial.println("I-K*H");
@@ -304,20 +308,21 @@ void meas_update()
   // accel_g.display();
   // Serial.println("Rotated g");
   // rotated_g.display();
-  Vector accel_measured;
-  Vector mag_measured;
+  // Vector accel_measured;
+  // Vector mag_measured;
 
   Vector acc_raw(AccX, AccY, AccZ);
   // double acc_norm = acc_raw.modulus();
   Vector(AccX, AccY, AccZ).display();
-  double mag_norm = sqrt(x_fin * x_fin + y_fin * y_fin + z_fin * z_fin);
-  b_f.display();
-  accel_measured = acc_raw - b_f;
+
+  acc_bias.display();
+  Vector accel_measured = acc_raw - acc_bias;
   accel_measured.normalize();
   Serial.println("Accel Measured");
   accel_measured.display();
 
-  mag_measured = Vector(x_fin / mag_norm, y_fin / mag_norm, z_fin / mag_norm) - b_m;
+  Vector mag_measured = Vector(x_fin, y_fin, z_fin) - magneto_bias;
+  mag_measured.normalize();
   // Serial.println("accel_meas");
   // accel_measured.display();
   temp1.matrix[0][0] = accel_measured.getX() - rotated_g.getX();
@@ -331,32 +336,21 @@ void meas_update()
   // H1.display();
   // Serial.print("State Vector: ");
   //(1000*delta_x).display();
-
-  b_w.setX(b_w.getX() + delta_x.matrix[3][0]);
-  b_w.setY(b_w.getY() + delta_x.matrix[4][0]);
-  b_w.setZ(b_w.getZ() + delta_x.matrix[5][0]);
-  b_f.setX(b_f.getX() + delta_x.matrix[6][0]);
-  b_f.setY(b_f.getY() + delta_x.matrix[7][0]);
-  b_f.setZ(b_f.getZ() + delta_x.matrix[8][0]);
-  b_m.setX(b_m.getX() + delta_x.matrix[9][0]);
-  b_m.setY(b_m.getY() + delta_x.matrix[10][0]);
-  b_m.setZ(b_m.getZ() + delta_x.matrix[11][0]);
 }
 
 void predict_state()
 {
   w_measured.matrix[0][0] = RateP;
   w_measured.matrix[1][0] = RateQ;
-  w_measured.matrix[2][0] = -RateR;
+  w_measured.matrix[2][0] = RateR;
   // Serial.println("w_measured");
   // w_measured.display();
-  w_est.setX(w_measured.getX() - b_w.getX());
-  w_est.setY(w_measured.getY() - b_w.getY());
-  w_est.setZ(w_measured.getZ() - b_w.getZ());
+  w_est.setX(w_measured.getX() - gyro_bias.getX());
+  w_est.setY(w_measured.getY() - gyro_bias.getY());
+  w_est.setZ(w_measured.getZ() - gyro_bias.getZ());
   // Serial.println("w_est");
   // w_est.display();
   Matrix w_est_cross = w_est.skew_from_vec();
-  Matrix epsilon1 = q_est.epsillon();
   Matrix Fk = zeros(12, 12);
   Matrix I3 = identity(3);
   for (int i = 0; i < 3; i++)
@@ -376,12 +370,17 @@ void predict_state()
   }
   // Serial.println("Fk");
   // Fk.display();
-  q_prop = q_est + 0.5 * dt * epsilon1 * w_est;
-  q_prop.normalize();
+
   // Serial.println("Propogated q");
   // q_prop.display();
   Matrix I12 = identity(12);
   phi = I12 + dt * Fk;
+  delta_x = phi * delta_x;
+
+  Matrix epsilon1 = q_ref.epsillon();
+  Vector del_theta(delta_x.matrix[0][0], delta_x.matrix[1][0], delta_x.matrix[2][0]);
+  q_prop = q_ref + 0.5 * epsilon1 * del_theta;
+  q_prop.normalize();
 
   // Serial.println("Phi, transition");
   // phi.display();
@@ -404,31 +403,39 @@ void predict_state()
   Q.matrix[1][1] = ((sigma_w.getY() * sigma_w.getY() * dt) + (sigma_bw * sigma_bw * dt * dt / 3));
   Q.matrix[2][2] = ((sigma_w.getZ() * sigma_w.getZ() * dt) + (sigma_bw * sigma_bw * dt * dt / 3));
 
-  // Serial.println("No error here");
-
-  P_pre = phi * P_update * phi.transpose() + Q;
+  P_prop = phi * P_prop * phi.transpose() + Q;
   // Serial.println("P_pre");
   // P_pre.display();
   pre_time = curr_time;
-  attitude = q_prop.attitude_matrix();
 }
 
 void reset()
 {
-  // resets the delta_x vector to zero and the reference quaternion
+  // resets the delta_x vector to zero, updates the reference quaternion and updates the biases
+  gyro_bias.setX(gyro_bias.getX() + delta_x.matrix[3][0]);
+  gyro_bias.setY(gyro_bias.getY() + delta_x.matrix[4][0]);
+  gyro_bias.setZ(gyro_bias.getZ() + delta_x.matrix[5][0]);
+  gyro_bias.setX(gyro_bias.getX() + delta_x.matrix[3][0]);
+  gyro_bias.setY(gyro_bias.getY() + delta_x.matrix[4][0]);
+  gyro_bias.setZ(gyro_bias.getZ() + delta_x.matrix[5][0]);
+  acc_bias.setX(acc_bias.getX() + delta_x.matrix[6][0]);
+  acc_bias.setY(acc_bias.getY() + delta_x.matrix[7][0]);
+  acc_bias.setZ(acc_bias.getZ() + delta_x.matrix[8][0]);
+  magneto_bias.setX(magneto_bias.getX() + delta_x.matrix[9][0]);
+  magneto_bias.setY(magneto_bias.getY() + delta_x.matrix[10][0]);
+  magneto_bias.setZ(magneto_bias.getZ() + delta_x.matrix[11][0]);
+
+  Matrix epsilon = q_ref.epsillon();
   Vector a;
   a.setX(delta_x.matrix[0][0]);
   a.setY(delta_x.matrix[1][0]);
   a.setZ(delta_x.matrix[2][0]);
-  b_w.setX(b_w.getX() + delta_x.matrix[3][0]);
-  b_w.setY(b_w.getY() + delta_x.matrix[4][0]);
-  b_w.setZ(b_w.getZ() + delta_x.matrix[5][0]);
-  Matrix epsilon = q_prop.epsillon();
-  q_est = q_prop + 0.5 * epsilon * a;
-  q_est.normalize();
-  double norm1 = sqrt(q_est.getq1() * q_est.getq1() + q_est.getq2() * q_est.getq2() + q_est.getq3() * q_est.getq3() + q_est.getq4() * q_est.getq4());
-  q_est = q_est / norm1;
-  for (int i = 0; i < 6; i++)
+  q_ref = q_ref + 0.5 * epsilon * a;
+  q_ref.normalize();
+
+  // double norm1 = sqrt(q_est.getq1() * q_est.getq1() + q_est.getq2() * q_est.getq2() + q_est.getq3() * q_est.getq3() + q_est.getq4() * q_est.getq4());
+  // q_est = q_est / norm1;
+  for (int i = 0; i < 12; i++)
   {
     delta_x.matrix[i][0] = 0;
   }
@@ -436,19 +443,19 @@ void reset()
 
 void loop()
 {
-  imuAcceleration();
+
   imuOmega();
-  mag_calibration();
-
-  meas_update();
-
   predict_state();
+
+  imuAcceleration();
+  QMCmagneto();
+  meas_update();
 
   reset();
   // prediction
 
-  // Serial.println("b_w");
-  // b_w.display();
+  // Serial.println("gyro_bias");
+  // gyro_bias.display();
 
   // Serial.print("q_est, estimated");
   // q_est.display();
