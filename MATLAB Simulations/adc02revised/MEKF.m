@@ -122,16 +122,18 @@ classdef MEKF
         function obj = predict_state(obj, omega_meas)
             % Takes the angular velocity measurement and carries out state prediction
             % Calculating xk(-)
-            w = omega_meas - obj.x_prop(4:6);  % subtracting the bias
-
+            w = omega_meas - obj.x_prop(4:6)  % subtracting the bias
+            omega_meas = omega_meas
+            temp= obj.x_prop(4:6)
             I3 = eye(3);
             o3 = zeros(3,3);
             F = [-skew(w), -I3; o3, o3];
             I6 = eye(6);
             phi = I6 + F * obj.dt_prop; % state transition matrix
-
+            
+            obj.x_prop = obj.x_prop + F * obj.dt_prop * obj.del_x;
             obj.del_x = phi * obj.del_x;
-            obj.x_prop = obj.x_ref + obj.del_x;
+            
 
             % Qt calculation still has to be confirmed
             sigma_gyro_bias = diag([obj.std_dev_gyro(1)^2; obj.std_dev_gyro(2)^2; obj.std_dev_gyro(3)^2]);
