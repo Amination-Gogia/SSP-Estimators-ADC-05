@@ -2,6 +2,7 @@ classdef MEKF
     
     properties
         R % measurement covariance 
+        first_estimate_done % A boolean
         P_update % meaurement updated state cov
         P_pre % predicted state cov
         P_prop % propagated state cov
@@ -31,8 +32,9 @@ classdef MEKF
             obj.x_ref = x_init;
             obj.dt_prop = dt;
             obj.x_prop = x_init; 
-            obj.predicted_meas = pred_measurement(obj.q_ref, [1; 0; 0], [0.1234; 0.4567; 0.7890]);
+            %obj.predicted_meas = pred_measurement(obj.q_ref, [1; 0; 0], [0.1234; 0.4567; 0.7890]);
             obj.std_dev_gyro = std_dev_process;
+            obj.first_estimate_done = false;
         end
 
         function obj = reset(obj)
@@ -50,37 +52,71 @@ classdef MEKF
 
         function obj = measurement_update(obj, zk, sun_prop_iner, mag_prop_iner) % zk is the measurement
             % Taking the measurement as sun vector followed by magnetic field vector
+            if obj.first_estimate_done == true
+                
+            
+
             % calculating xk(+)
-            Rk = obj.R;
-            sun_prop_iner = sun_prop_iner/norm(sun_prop_iner);
-            mag_prop_iner = mag_prop_iner/norm(mag_prop_iner);
-            hxk = pred_measurement(obj.q_prop, sun_prop_iner, mag_prop_iner);
+                Rk = obj.R;
+                sun_prop_iner = sun_prop_iner/norm(sun_prop_iner);
+                mag_prop_iner = mag_prop_iner/norm(mag_prop_iner);
+                hxk = pred_measurement(obj.q_prop, sun_prop_iner, mag_prop_iner);
+    
+                Hk = sensitivity_matrix(hxk);
+                P_pro = obj.P_prop;
+                
+                S = Hk * P_pro * Hk' + Rk;
+                K = (P_pro * Hk') / S; % Kalman Gain
+                
+                zk = [zk(1:3)/norm(zk(1:3)); zk(4:6)/norm(zk(4:6))];
+                obj.del_x = obj.del_x + K * (zk - hxk);
+                
+                obj.x_prop = obj.x_ref + obj.del_x;
+                obj.P_update = (eye(6) - K * Hk) * obj.P_prop;
+    
+                obj.P_prop  = obj.P_update;
+                
+                K_del_z = K * (zk - hxk);
+                del_theta= K_del_z(1:3);% the incremental angular dispacement vector from the reference quaternion
+                obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * del_theta;
+                obj.q_est = obj.q_est/norm(obj.q_est);
+    
+                obj.q_prop = obj.q_est;
+            else
+                b_meas_first = zk(4:6);
+                sun_meas_first = zk(1:3);
+                
+                b_prop_first = mag_prop_iner;
+                sun_prop_first = sun_prop_iner;
+                
+                v1 = b_prop_first;
+                v1 = v1/norm(v1);
+                v2 = cross(v1, sun_prop_first);
+                v2 = v2/norm(v2);
+                v3 = cross(v1, v2);
+                V = [v1, v2, v3];
 
-            Hk = sensitivity_matrix(hxk);
-            P_pro = obj.P_prop;
-            
-            S = Hk * P_pro * Hk' + Rk;
-            K = (P_pro * Hk') / S; % Kalman Gain
-            
-            zk = [zk(1:3)/norm(zk(1:3)); zk(4:6)/norm(zk(4:6))];
-            obj.del_x = obj.del_x + K * (zk - hxk);
-            
-            obj.x_prop = obj.x_ref + obj.del_x;
-            obj.P_update = (eye(6) - K * Hk) * obj.P_prop;
+                w1 = b_meas_first;
+                w1 = w1/norm(w1);
+                w2 = cross(w1, sun_meas_first);
+                w2 = w2/norm(w2);
+                w3 = cross(w1, w2);
+                W = [w1, w2, w3];
+                
+                A_start = W * V';
+                q_start = quaternion_from_attitude(A_start);
 
-            obj.P_prop  = obj.P_update;
-            
-            del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
-            obj.q_est = obj.q_ref + 0.5 * epsilon(obj.q_ref) * del_theta;
-            obj.q_est = obj.q_est/norm(obj.q_est);
-
-            obj.q_prop = obj.q_est;
+                obj.q_prop = q_start;
+                obj.q_ref = q_start;
+                obj.q_est = q_start;
+                obj.first_estimate_done = true;
+            end
         end
 
         function obj = predict_state(obj, omega_meas)
             % Takes the angular velocity measurement and carries out state prediction
             % Calculating xk(-)
-            w = omega_meas - obj.del_x(4:6);  % subtracting the bias
+            w = omega_meas - obj.x_prop(4:6);  % subtracting the bias
 
             I3 = eye(3);
             o3 = zeros(3,3);
@@ -100,8 +136,10 @@ classdef MEKF
             obj.P_pre = phi * obj.P_pre * phi' + Qt; 
 
             del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
-            obj.q_est = obj.q_ref + 0.5 * epsilon(obj.q_ref) * del_theta;
+            obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * w * obj.dt_prop;
             obj.q_est = obj.q_est/norm(obj.q_est);
+
+            
 
             obj.q_prop = obj.q_est;
         end
@@ -161,4 +199,49 @@ function res = pred_measurement(q_temp, sun_prop_inertial, mag_prop_inertial)
     res(4:6) = b_rotated;
 end
 
+function q = quaternion_from_attitude(A)
+    % This function converts a rotation matrix A into a quaternion q
+    % A is a 3x3 rotation matrix
+    % q is a 1x4 quaternion [q1, q2, q3, q4] where q4 is the scalar part
+    
+    % Ensure the matrix is 3x3
+    assert(all(size(A) == [3 3]), 'Input matrix must be 3x3');
+    
+    % Calculate the trace of the matrix
+    traceA = trace(A);
+    
+    if traceA > 0
+        % When the trace is positive
+        S = sqrt(traceA + 1.0) * 2; % S = 4 * q4
+        q4 = 0.25 * S;
+        q1 = (A(3, 2) - A(2, 3)) / S;
+        q2 = (A(1, 3) - A(3, 1)) / S;
+        q3 = (A(2, 1) - A(1, 2)) / S;
+    elseif (A(1, 1) > A(2, 2)) && (A(1, 1) > A(3, 3))
+        % Column 1 has the greatest value
+        S = sqrt(1.0 + A(1, 1) - A(2, 2) - A(3, 3)) * 2; % S = 4 * q1
+        q4 = (A(3, 2) - A(2, 3)) / S;
+        q1 = 0.25 * S;
+        q2 = (A(1, 2) + A(2, 1)) / S;
+        q3 = (A(1, 3) + A(3, 1)) / S;
+    elseif A(2, 2) > A(3, 3)
+        % Column 2 has the greatest value
+        S = sqrt(1.0 + A(2, 2) - A(1, 1) - A(3, 3)) * 2; % S = 4 * q2
+        q4 = (A(1, 3) - A(3, 1)) / S;
+        q1 = (A(1, 2) + A(2, 1)) / S;
+        q2 = 0.25 * S;
+        q3 = (A(2, 3) + A(3, 2)) / S;
+    else
+        % Column 3 has the greatest value
+        S = sqrt(1.0 + A(3, 3) - A(1, 1) - A(2, 2)) * 2; % S = 4 * q3
+        q4 = (A(2, 1) - A(1, 2)) / S;
+        q1 = (A(1, 3) + A(3, 1)) / S;
+        q2 = (A(2, 3) + A(3, 2)) / S;
+        q3 = 0.25 * S;
+    end
+    
+    % Combine into a quaternion with the scalar part as the last component
+    q = [q1; q2; q3; q4];
+    
+end
 
