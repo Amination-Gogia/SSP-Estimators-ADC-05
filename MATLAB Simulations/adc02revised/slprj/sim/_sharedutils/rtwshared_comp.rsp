@@ -1,0 +1,7 @@
+﻿-I"C:\EKF Attempt\MATLAB Simulations\adc02revised"
+-I"C:\EKF Attempt\MATLAB Simulations\adc02revised\slprj\sim\_sharedutils"
+-I"C:\Program Files\MATLAB\R2024a\extern\include"
+-I"C:\Program Files\MATLAB\R2024a\simulink\include"
+-I"C:\Program Files\MATLAB\R2024a\rtw\c\src"
+-I"C:\Program Files\MATLAB\R2024a\rtw\c\src\ext_mode\common"
+-I"C:\Program Files\MATLAB\R2024a\rtw\c\ert"

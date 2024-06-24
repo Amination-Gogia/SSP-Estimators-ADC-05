@@ -44,7 +44,7 @@ classdef MEKF
             del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
 
             obj.q_ref = obj.q_ref + 0.5 * eps * del_theta;
-            obj.q_ref = obj.q_ref / norm(obj.q_ref); % normalising the quaternion
+            obj.q_ref = obj.q_ref / norm(obj.q_ref); % normalising the quaternion;
 
             obj.x_ref(4:6) = obj.x_ref(4:6) + obj.del_x(4:6);
             obj.del_x = zeros(6, 1);
@@ -106,13 +106,8 @@ classdef MEKF
                 w3 = cross(w1, w2);
                 W = [w1, w2, w3];
                 
-                A_start = W * V'
-                q_start = quaternion_from_attitude(A_start)
-                A_tp = attitude_matrix(q_start)
-                b_rot = A_start * b_prop_first
-                sun_meas_first = A_start * sun_meas_first
-                disp(b_meas_first)
-                disp(sun_meas_first)
+                A_start = W * V';
+                q_start = quaternion_from_attitude(A_start);
                 
 
                 obj.q_prop = q_start;
@@ -146,8 +141,8 @@ classdef MEKF
             Qt = [sigma_gyro_bias * dt + 1/3 * sigma_gyro_noise * dt ^ 3, - sigma_gyro_noise * dt * dt/2; - sigma_gyro_noise * dt * dt/2, sigma_gyro_noise * dt ];
             obj.P_pre = phi * obj.P_pre * phi' + Qt; 
 
-            del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
-            obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * omega_meas * obj.dt_prop;
+            % del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
+            obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * w * obj.dt_prop;
             obj.q_est = obj.q_est/norm(obj.q_est);
 
             
