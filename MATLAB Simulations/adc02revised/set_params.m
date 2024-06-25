@@ -10,7 +10,7 @@ sat.orb.peri=93;%argument of periapse of orbit in degrees
 sat.orb.theta=203;%true anomaly of satellite at start time
 sat.dragco=2.179;%drag coefficient of satellite
 sat.dragarea=1;%effective area for drag of satellite (square meters)
-sat.inertiamatrix=[10, 0, 0; 0, 10, 0; 0, 0, 10];%MOI Matrix wrt Body Frame about COM
+sat.inertiamatrix=[10, 0, 9; 5, 10, 0; 0, 0, 10];%MOI Matrix wrt Body Frame about COM
 sat.initialorientation=quaternion([1, 0, 0, 0]);%quaternion of initial orientation of satellite wrt LHLV frame 
 
 %computation
