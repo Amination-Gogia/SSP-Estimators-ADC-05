@@ -43,12 +43,19 @@ class Quaternion(Vector):
                                     [qz, qw, -qx],
                                     [-qy, qx, qw]])
     def __add__(self, other):
-        if isinstance(other) == self.shape:
+        if isinstance(other, Matrix) and other.shape== self.shape:
             return Quaternion(self.w + other[0], self.x + other[1], self.y + other[2], self.z + other[3])
         raise TypeError(f'Not adding quaternion to the correct dimensional matrix, which is {other.shape}')
 
     def __subtract__(self, other):
         return self.__add__(-1 * other)
+    
+    def __mul__(self, other):
+        if isinstance(other, (float, int)):
+            ans = Quaternion(*(self[i] * other for i in range(4)))
+            return ans
+        raise NotImplementedError('Quaternion multiplication with scalar only implemented in this library')
+
     
 # Usage example
 q = Quaternion(1, 0, 1, 0)
