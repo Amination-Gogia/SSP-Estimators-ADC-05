@@ -55,6 +55,14 @@ class Quaternion(Vector):
             ans = Quaternion(*(self[i] * other for i in range(4)))
             return ans
         raise NotImplementedError('Quaternion multiplication with scalar only implemented in this library')
+    
+    def attitude_matrix(self):
+        w, x, y, z = self.w, self.x, self.y, self.z
+        return Matrix.from_list([
+            [1 - 2*y**2 - 2*z**2, 2*x*y + 2*w*z, 2*x*z - 2*w*y],
+            [2*x*y - 2*w*z, 1 - 2*x**2 - 2*z**2, 2*y*z + 2*w*x],
+            [2*x*z + 2*w*y, 2*y*z - 2*w*x, 1 - 2*x**2 - 2*y**2]
+        ])
 
     
 # Usage example
