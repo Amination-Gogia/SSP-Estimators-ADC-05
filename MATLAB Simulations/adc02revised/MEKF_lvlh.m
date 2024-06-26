@@ -53,10 +53,35 @@ classdef MEKF_lvlh
         function obj = measurement_update(obj, zk, sun_prop_lvlh, mag_prop_lvlh) % zk is the measurement
             % Taking the measurement as sun vector followed by magnetic field vector
             if obj.first_estimate_done == true
-                
-            
+                % calculating xk(+)
 
-            % calculating xk(+)
+                
+                Rk = obj.R;
+                sun_prop_lvlh = sun_prop_lvlh/norm(sun_prop_lvlh);
+                mag_prop_lvlh = mag_prop_lvlh/norm(mag_prop_lvlh);
+                hxk = pred_measurement(obj.q_prop, sun_prop_lvlh, mag_prop_lvlh);
+    
+                Hk = sensitivity_matrix(hxk);
+                P_pro = obj.P_prop;
+                
+                S = Hk * P_pro * Hk' + Rk;
+                K = (P_pro * Hk') / S; % Kalman Gain
+                
+
+                
+                
+                zk = [zk(1:3)/norm(zk(1:3)); zk(4:6)/norm(zk(4:6))];
+                K_del_z = K * (zk - hxk);
+                obj.del_x = obj.del_x + K_del_z;
+                del_theta= K_del_z(1:3);% the incremental angular dispacement vector from the reference quaternion
+                obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * del_theta;
+                obj.q_est = obj.q_est/norm(obj.q_est);
+
+                obj.x_prop = obj.x_ref + obj.del_x;
+                obj.P_update = (eye(6) - K * Hk) * obj.P_prop;
+                obj.P_prop  = obj.P_update;
+                obj.q_prop = obj.q_est;
+                %{
                 Rk = obj.R;
                 sun_prop_lvlh = sun_prop_lvlh/norm(sun_prop_lvlh);
                 mag_prop_lvlh = mag_prop_lvlh/norm(mag_prop_lvlh);
@@ -82,8 +107,7 @@ classdef MEKF_lvlh
                 obj.q_est = obj.q_est/norm(obj.q_est);
     
                 obj.q_prop = obj.q_est;
-            
-             
+                %}
                 else 
                  
                 b_meas_first = zk(4:6);
