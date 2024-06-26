@@ -65,7 +65,9 @@ class Vector(Matrix):
         return Vector(*[self[i] / mod for i in range(self.shape[0])])
     
     def normalize(self):
-        self = self.unit_vector
+        unit_vec = self.unit_vector
+        for i in range(len(self)):
+            self[i] = unit_vec[i]
     
     @property
     def cross_pdt_matrix(self):
@@ -101,6 +103,3 @@ class Vector(Matrix):
 I = Matrix.identity(4)
 v = Vector(1, 2, 3, 4)
 # print(type(2 * v))
-
-v2 = 2 * I * v
-print(type(v2))
