@@ -140,16 +140,21 @@ classdef MEKF_lvlh
             x_att = skew(y_att) * z_att;
             
             A_lvlh = [x_att, y_att, z_att]';
-           
+
+            A_body_wrt_lvlh = attitude_matrix(obj.q_prop);
             w_body = omega_meas - obj.x_prop(4:6);  % subtracting the bias
             
             
-            w = (w_body - w_lvlh_hat); %% change this
+            %w = (w_body - w_lvlh_hat); %This works with line number 158
+            w = w_body - A_body_wrt_lvlh * A_lvlh * w_lvlh_hat;
             
+     
+
             %omega_meas = omega_meas
             %temp= obj.x_prop(4:6)
             I3 = eye(3);
             o3 = zeros(3,3);
+            %F = [-skew(w), -A_body_wrt_lvlh; o3, o3];
             F = [-skew(w), -I3; o3, o3];
             I6 = eye(6);
             phi = I6 + F * obj.dt_prop; % state transition matrix
