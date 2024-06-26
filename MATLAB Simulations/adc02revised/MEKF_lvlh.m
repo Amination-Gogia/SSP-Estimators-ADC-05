@@ -184,7 +184,8 @@ end
 
 
 
-function a = attitude_matrix(q)
+%{ 
+    function a = attitude_matrix(q)
     % Returns the attitude matrix of transformation from inertial to body frame
 
     q1 = q(1);
@@ -197,7 +198,23 @@ function a = attitude_matrix(q)
         2*(q1*q2 - q3*q4), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 + q1*q4);
         2*(q1*q3 + q2*q4), 2*(q2*q3 - q1*q4), 1 - 2*(q1^2 + q2^2)
     ];
-end
+    end 
+%}
+
+function a = attitude_matrix(q)
+    % Returns the attitude matrix of transformation from inertial to body frame
+
+    qx = q(2);
+    qy = q(3);
+    qz = q(4);
+    qw = q(1); % q4 is the scalar component
+
+    a = [
+        1 - 2*(qy^2 + qz^2), 2*(qx*qy + qz*qw), 2*(qx*qz - qy*qw);
+        2*(qx*qy - qz*qw), 1 - 2*(qx^2 + qz^2), 2*(qy*qz + qx*qw);
+        2*(qx*qz + qy*qw), 2*(qy*qz - qx*qw), 1 - 2*(qx^2 + qy^2)
+    ];
+    end 
 
 function H = sensitivity_matrix(meas_pre)
 % takes in the predicted sun-vector and magnetic field vector to return H
@@ -212,27 +229,25 @@ function H = sensitivity_matrix(meas_pre)
     H = [sun_skew, o3; b_skew, o3];
 end
 
+
+function a = epsilon(q)
+    % a helper matrix for quaternion multiplication
+    a = [-q(2:4)';
+        q(1)*eye(3) + skew(q(2:4))];
+end
+
+%{
 function a = epsilon(q)
     % a helper matrix for quaternion multiplication
     a = [q(4)*eye(3) + skew(q(1:3));
          -q(1:3)'];
 end
-
+%}
 function a = skew(x)
     % returns the cross product matrix after taking in a 3 * 1 vector
     a = [0 -x(3) x(2);
          x(3) 0 -x(1);
          -x(2) x(1) 0];
-end
-
-function res = pred_measurement(q_temp, sun_prop_inertial, mag_prop_inertial)
-    % Returns the body frame measurement of the sun-vector and the magnetic-field vector
-    A = attitude_matrix(q_temp);
-    b_rotated = A * mag_prop_inertial;
-    sun_vec_rotated = A * sun_prop_inertial;
-    res = zeros(6,1);
-    res(1:3) = sun_vec_rotated;
-    res(4:6) = b_rotated;
 end
 
 function q = quaternion_from_attitude(M)
@@ -273,8 +288,59 @@ function q = quaternion_from_attitude(M)
     end
 
     % Return the quaternion as a column vector
-    q = [qx; qy; qz; qw];
+    q = [qw; qx; qy; qz];
 end
 
-    % Combine into a quaternion with the scalar part as the last component
+function res = pred_measurement(q_temp, sun_prop_inertial, mag_prop_inertial)
+    % Returns the body frame measurement of the sun-vector and the magnetic-field vector
+    A = attitude_matrix(q_temp);
+    b_rotated = A * mag_prop_inertial;
+    sun_vec_rotated = A * sun_prop_inertial;
+    res = zeros(6,1);
+    res(1:3) = sun_vec_rotated;
+    res(4:6) = b_rotated;
+end
+
+%{
+function q = quaternion_from_attitude(M)
+    % Ensure M is a 3x3 matrix
+    assert(all(size(M) == [3 3]), 'Input matrix must be 3x3');
+
+    % Calculate trace of the matrix
+    tr = M(1,1) + M(2,2) + M(3,3);
+
+    if tr > 0
+        % Case 1: Trace is positive
+        S = sqrt(tr + 1.0) * 2; % S = 4 * qw
+        qw = 0.25 * S;
+        qx = (-M(3,2) + M(2,3)) / S;
+        qy = (-M(1,3) + M(3,1)) / S;
+        qz = (-M(2,1) + M(1,2)) / S;
+    elseif M(1,1) > M(2,2) && M(1,1) > M(3,3)
+        % Case 2: m00 is the largest diagonal element
+        S = sqrt(1.0 + M(1,1) - M(2,2) - M(3,3)) * 2; % S = 4 * qx
+        qw = (-M(3,2) + M(2,3)) / S;
+        qx = 0.25 * S;
+        qy = (M(1,2) + M(2,1)) / S;
+        qz = (M(1,3) + M(3,1)) / S;
+    elseif M(2,2) > M(3,3)
+        % Case 3: m11 is the largest diagonal element
+        S = sqrt(1.0 + M(2,2) - M(1,1) - M(3,3)) * 2; % S = 4 * qy
+        qw = (-M(1,3) + M(3,1)) / S;
+        qx = (M(1,2) + M(2,1)) / S;
+        qy = 0.25 * S;
+        qz = (M(2,3) + M(3,2)) / S;
+    else
+        % Case 4: m22 is the largest diagonal element
+        S = sqrt(1.0 + M(3,3) - M(1,1) - M(2,2)) * 2; % S = 4 * qz
+        qw = (-M(2,1) + M(1,2)) / S;
+        qx = (M(1,3) + M(3,1)) / S;
+        qy = (M(2,3) + M(3,2)) / S;
+        qz = 0.25 * S;
+    end
+
+    % Return the quaternion as a column vector
+    q = [qx; qy; qz; qw];
+end
+%}
     
