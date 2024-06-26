@@ -1,19 +1,20 @@
 classdef MEKF_lvlh
     
     properties
+        % _prop suffix added to propagated variables, they are propagated between methods
         R % measurement covariance 
-        first_estimate_done % A boolean
+        first_estimate_done % A boolean indicating whether q_prop has been initialised with TRIAD or not. Initially False, set to True once TRIAD estimate calculated
         P_update % meaurement updated state cov
         P_pre % predicted state cov
         P_prop % propagated state cov
-        q_prop % propagated quaternion of body frame
-        q_est % estimated quaternion
-        del_x % error/incremental in state vector
+        q_prop % propagated quaternion of body frame w.r.t. orbit frame
+        q_est % estimated quaternion of body frame w.r.t. orbit frame
+        del_x % error/incremental state vector
         x_ref % reference state vector
         x_pred % predicted state
         x_prop % propagated state
         x_est % estimated state
-        q_ref % reference quaternion
+        q_ref % reference quaternion of body frame w.r.t. orbit frame
         predicted_meas % measurement prediction from propagated state
         dt_prop % propagation time between state predictions
         std_dev_gyro; % 6-D vector, first three components are std-dev in gyro bias measurements, next three are std dev in the gyro noise measurements
@@ -21,10 +22,11 @@ classdef MEKF_lvlh
 
     methods
         function obj = MEKF_lvlh(R_input, P_start, x_init, dt, std_dev_process)
+            % Constructor
             obj.R = R_input;
-            obj.q_prop = [0; 0; 0; 1];
-            obj.q_ref = [0; 0; 0; 1];
-            obj.q_est = [0; 0; 0; 1];
+            obj.q_prop = [1; 0; 0; 0];
+            obj.q_ref = [1; 0; 0; 0];
+            obj.q_est = [1; 0; 0; 0];
             obj.del_x = zeros(6, 1);
             obj.P_pre = P_start;
             obj.P_update = P_start;
@@ -32,14 +34,13 @@ classdef MEKF_lvlh
             obj.x_ref = x_init;
             obj.dt_prop = dt;
             obj.x_prop = x_init; 
-            
             obj.std_dev_gyro = std_dev_process;
             obj.first_estimate_done = false;
         end
 
         function obj = reset(obj)
-            % Resets the x vector after setting dx vector to zero,
-            % updates the reference quaternion 
+            % Resets the x vector after setting del_x vector to zero,
+            % updates the reference quaternion, and the gyro bias estimates 
             eps = epsilon(obj.q_ref);
             del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
 
@@ -81,35 +82,9 @@ classdef MEKF_lvlh
                 obj.P_update = (eye(6) - K * Hk) * obj.P_prop;
                 obj.P_prop  = obj.P_update;
                 obj.q_prop = obj.q_est;
-                %{
-                Rk = obj.R;
-                sun_prop_lvlh = sun_prop_lvlh/norm(sun_prop_lvlh);
-                mag_prop_lvlh = mag_prop_lvlh/norm(mag_prop_lvlh);
-                hxk = pred_measurement(obj.q_prop, sun_prop_lvlh, mag_prop_lvlh);
-    
-                Hk = sensitivity_matrix(hxk);
-                P_pro = obj.P_prop;
-                
-                S = Hk * P_pro * Hk' + Rk;
-                K = (P_pro * Hk') / S; % Kalman Gain
-                
-                zk = [zk(1:3)/norm(zk(1:3)); zk(4:6)/norm(zk(4:6))];
-                obj.del_x = obj.del_x + K * (zk - hxk);
-                
-                obj.x_prop = obj.x_ref + obj.del_x;
-                obj.P_update = (eye(6) - K * Hk) * obj.P_prop;
-    
-                obj.P_prop  = obj.P_update;
-                
-                K_del_z = K * (zk - hxk);
-                del_theta= K_del_z(1:3);% the incremental angular dispacement vector from the reference quaternion
-                obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * del_theta;
-                obj.q_est = obj.q_est/norm(obj.q_est);
-    
-                obj.q_prop = obj.q_est;
-                %}
+               
                 else 
-                 
+                 % Apply TRIAD to determine the initial attitude
                 b_meas_first = zk(4:6);
                 sun_meas_first = zk(1:3);
                 
@@ -144,41 +119,59 @@ classdef MEKF_lvlh
         end
 
         function obj = predict_state(obj, omega_meas, pos_vec, vel_vec)
-            % Takes the angular velocity measurement and carries out state prediction
+            % Takes the angular velocity measurement, velocity vector and position vector from the propagator and carries out state prediction
             % Calculating xk(-)
             
             
+            % Calculating angular velocity of rotation of orbit frame(lvlh
+            % frame) w.r.t inertial frame, as measured in inertial frame
 
+            % Calculating the unit vectors along velocity vector and
+            % position vector
             vel_vec_unit_vec = vel_vec/norm(vel_vec);
             pos_vec_unit_vec = pos_vec/norm(pos_vec);
+
+            % Direction of the angular velocity of orbit frame w.r.t.
+            % inertial frame, as measured in inertial frame
             w_lvlh_unit_vec = skew(pos_vec_unit_vec) * vel_vec_unit_vec;
             w_lvlh_unit_vec = w_lvlh_unit_vec/norm(w_lvlh_unit_vec);
-
+            
+            % The angular velocity would equal
+            % (velocity_perpendicular_to_position_vector)/modulus(position vector)
             vel_dot_pos = vel_vec(1) * pos_vec_unit_vec(1) + vel_vec(2) * pos_vec_unit_vec(2) + vel_vec(3) * pos_vec_unit_vec(3); 
             vel_perpendicular_to_pos_vec = vel_vec - ((vel_dot_pos) * pos_vec_unit_vec);
-            w_lvlh_hat = w_lvlh_unit_vec * norm(vel_perpendicular_to_pos_vec)/norm(pos_vec);
 
+            % w_lvlh_hat is the angular velocity of orbit frame(lvlh
+            % frame) w.r.t inertial frame, as measured in inertial frame
+            w_lvlh_hat = w_lvlh_unit_vec * norm(vel_perpendicular_to_pos_vec)/norm(pos_vec);
+            
+
+            % Constructing the attitude matrix of orbit frame w.r.t.
+            % inertial frame
             z_att = - pos_vec_unit_vec;
             y_att = skew(z_att) * vel_vec_unit_vec;
             y_att = y_att/norm(y_att);
             x_att = skew(y_att) * z_att;
-            
+
+            % A_lvlh is the attitude matrix of orbit frame w.r.t. inertial frame
             A_lvlh = [x_att, y_att, z_att]';
 
+            % A_body_wrt_lvlh is the attitude matrix of body frame w.r.t. orbit frame
             A_body_wrt_lvlh = attitude_matrix(obj.q_prop);
+
+            % w_body is the sensor reading minus bias, angular velocity of body measured in body frame
             w_body = omega_meas - obj.x_prop(4:6);  % subtracting the bias
             
-            
-            %w = (w_body - w_lvlh_hat); %This works with line number 158
+            % w is the rate of change of attitude error angle del_theta,
+            % the rate of change of (orbit frame to body frame quaternion) in
+            % body frame **
             w = w_body - A_body_wrt_lvlh * A_lvlh * w_lvlh_hat;
             
-     
-
-            %omega_meas = omega_meas
-            %temp= obj.x_prop(4:6)
             I3 = eye(3);
             o3 = zeros(3,3);
-            %F = [-skew(w), -A_body_wrt_lvlh; o3, o3];
+            
+
+            % propagating state-vector and error in state
             F = [-skew(w), -I3; o3, o3];
             I6 = eye(6);
             phi = I6 + F * obj.dt_prop; % state transition matrix
@@ -195,35 +188,14 @@ classdef MEKF_lvlh
             Qt = [sigma_gyro_bias * dt + 1/3 * sigma_gyro_noise * dt ^ 3, - sigma_gyro_noise * dt * dt/2; - sigma_gyro_noise * dt * dt/2, sigma_gyro_noise * dt ];
             obj.P_pre = phi * obj.P_pre * phi' + Qt; 
 
-            % del_theta = obj.del_x(1:3); % the incremental angular dispacement vector from the reference quaternion
+            % Propagating the quaternion of body frame w.r.t orbit frame
             obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * w * obj.dt_prop;
             obj.q_est = obj.q_est/norm(obj.q_est);
-
-            
 
             obj.q_prop = obj.q_est;
         end
     end
 end
-
-
-
-%{ 
-    function a = attitude_matrix(q)
-    % Returns the attitude matrix of transformation from inertial to body frame
-
-    q1 = q(1);
-    q2 = q(2);
-    q3 = q(3);
-    q4 = q(4); % q4 is the scalar component
-
-    a = [
-        1 - 2*(q2^2 + q3^2), 2*(q1*q2 + q3*q4), 2*(q1*q3 - q2*q4);
-        2*(q1*q2 - q3*q4), 1 - 2*(q1^2 + q3^2), 2*(q2*q3 + q1*q4);
-        2*(q1*q3 + q2*q4), 2*(q2*q3 - q1*q4), 1 - 2*(q1^2 + q2^2)
-    ];
-    end 
-%}
 
 function a = attitude_matrix(q)
     % Returns the attitude matrix of transformation from inertial to body frame
@@ -260,13 +232,6 @@ function a = epsilon(q)
         q(1)*eye(3) + skew(q(2:4))];
 end
 
-%{
-function a = epsilon(q)
-    % a helper matrix for quaternion multiplication
-    a = [q(4)*eye(3) + skew(q(1:3));
-         -q(1:3)'];
-end
-%}
 function a = skew(x)
     % returns the cross product matrix after taking in a 3 * 1 vector
     a = [0 -x(3) x(2);
@@ -325,46 +290,3 @@ function res = pred_measurement(q_temp, sun_prop_inertial, mag_prop_inertial)
     res(4:6) = b_rotated;
 end
 
-%{
-function q = quaternion_from_attitude(M)
-    % Ensure M is a 3x3 matrix
-    assert(all(size(M) == [3 3]), 'Input matrix must be 3x3');
-
-    % Calculate trace of the matrix
-    tr = M(1,1) + M(2,2) + M(3,3);
-
-    if tr > 0
-        % Case 1: Trace is positive
-        S = sqrt(tr + 1.0) * 2; % S = 4 * qw
-        qw = 0.25 * S;
-        qx = (-M(3,2) + M(2,3)) / S;
-        qy = (-M(1,3) + M(3,1)) / S;
-        qz = (-M(2,1) + M(1,2)) / S;
-    elseif M(1,1) > M(2,2) && M(1,1) > M(3,3)
-        % Case 2: m00 is the largest diagonal element
-        S = sqrt(1.0 + M(1,1) - M(2,2) - M(3,3)) * 2; % S = 4 * qx
-        qw = (-M(3,2) + M(2,3)) / S;
-        qx = 0.25 * S;
-        qy = (M(1,2) + M(2,1)) / S;
-        qz = (M(1,3) + M(3,1)) / S;
-    elseif M(2,2) > M(3,3)
-        % Case 3: m11 is the largest diagonal element
-        S = sqrt(1.0 + M(2,2) - M(1,1) - M(3,3)) * 2; % S = 4 * qy
-        qw = (-M(1,3) + M(3,1)) / S;
-        qx = (M(1,2) + M(2,1)) / S;
-        qy = 0.25 * S;
-        qz = (M(2,3) + M(3,2)) / S;
-    else
-        % Case 4: m22 is the largest diagonal element
-        S = sqrt(1.0 + M(3,3) - M(1,1) - M(2,2)) * 2; % S = 4 * qz
-        qw = (-M(2,1) + M(1,2)) / S;
-        qx = (M(1,3) + M(3,1)) / S;
-        qy = (M(2,3) + M(3,2)) / S;
-        qz = 0.25 * S;
-    end
-
-    % Return the quaternion as a column vector
-    q = [qx; qy; qz; qw];
-end
-%}
-    
