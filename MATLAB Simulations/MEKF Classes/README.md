@@ -11,14 +11,14 @@ This function performs attitude estimation using MEKF based on measurements from
 ### Usage Instructions
 
 1. **Add the Function to Simulink**:
-
+   - Add the [MEKF_lvlh.m](./MEKF_lvlh.m) file to the same directory as your simulink model, or add its directory to the MATLAB path.
    - Open your Simulink model.
    - Add a MATLAB Function block from the Simulink library.
    - Copy and paste the provided code into the MATLAB Function block. This function can also be copied from the [mekf_lvlh_block.m](./mekf_lvlh_block.m).
-
+   
    ```matlab
    % Copy this to the MATLAB function block in Simulink to use the mekf_lvlh_block for attitude estimation
-   % Ensure that [MEKF_lvlh.m](./MEKF_lvlh.m) is in the same directory as your simulation
+   % Ensure that MEKF_lvlh.m is in the same directory as your simulation
    % Or add the directory it is in to to the MATLAB path
 
    function q  = mekf_lvlh_block(omega_meas, sun_measurement_body, mag_measurement_body, sun_propagated_lvlh, mag_propagated_lvlh, pos_vec, vel_vec)
