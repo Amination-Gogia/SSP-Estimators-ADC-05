@@ -100,6 +100,13 @@ class Matrix:
         return identity_matrix
 
     @classmethod
+    def zeros(cls, size):
+        zero_matrix = cls(size, size)
+        for i in range(size):
+            for j in range(size):
+                zero_matrix.matrix[i][j] = 0
+        return zero_matrix
+    @classmethod
     def diagonal(cls, *args):
         m = len(args)
         temp = cls(m,m)

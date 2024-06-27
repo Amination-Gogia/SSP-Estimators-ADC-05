@@ -224,7 +224,8 @@ classdef MEKF_lvlh
 
             dt = obj.dt_prop;
             Qt = [sigma_gyro_bias * dt + 1/3 * sigma_gyro_noise * dt ^ 3, - sigma_gyro_noise * dt * dt/2; - sigma_gyro_noise * dt * dt/2, sigma_gyro_noise * dt ];
-            obj.P_pre = phi * obj.P_pre * phi' + Qt; 
+            obj.P_pre = phi * obj.P_prop * phi' + Qt; 
+            obj.P_prop = obj.P_pre;
 
             % Propagating the quaternion of body frame w.r.t orbit frame
             obj.q_est = obj.q_prop + 0.5 * epsilon(obj.q_prop) * w * obj.dt_prop;

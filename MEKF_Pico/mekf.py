@@ -48,7 +48,7 @@ class MEKF:
         dt = self.dt_prop
         w_cross = w.skew()
 
-        F = Matrix(6,6)
+        F = Matrix.zeros(6,6)
 
         I3 = Matrix.identity(3)
 
@@ -67,9 +67,23 @@ class MEKF:
         sigma_gyro_noise = Matrix.diagonal(*(self.std_dev_gyro.matrix[3:6]))
         sigma_gyro_bias = sigma_gyro_bias * sigma_gyro_bias
         sigma_gyro_noise = sigma_gyro_noise * sigma_gyro_noise 
-        ## Q calculation to be done
-
         
+        Q1 = sigma_gyro_bias * dt + (1/3 * sigma_gyro_noise * (dt ** 3))
+        Q2 = - 0.5 * sigma_gyro_noise * (dt ** 2) 
+        Q4 = sigma_gyro_noise * dt
+
+        Q_k = Matrix(6,6)
+
+        for i in range(3):
+            for j in range(3):
+                Q_k[i][j] = Q1[i][j]
+                Q_k[3 + i][j] = Q2[i][j]
+                Q_k[i][3 + j] = Q2[i][j]
+                Q_k[3 + i][3 + j] = Q4[i][j]
+
+        self.P_pre = phi * self.P_prop * phi.transpose()
+        self.P_prop = self.P_pre
+
         eps = self.q_prop.epsilon()
         self.q_est = self.q_prop + 0.5 * eps * w * dt
         self.q_est.normalize()
