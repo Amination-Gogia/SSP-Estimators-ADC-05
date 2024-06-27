@@ -6,8 +6,7 @@ classdef MEKF_lvlh
     %   [4:6] = gyro biases
     % Measurement vector includes sun-vector and magnetic field vector in sensor frame
     % Estimates the quaternion of the body frame w.r.t. orbit frame
-    % Makes use of angular velocity measurement, propagator inputs of position and velocity to make predictions
-    % Measurement update using sun-vector and magnetic field vector
+    % Makes use of 
 
     properties
 
