@@ -1,4 +1,4 @@
-from matrix import Matrix
+from matrix import Matrix, quaternion_from_attitude_matrix
 from vector import Vector
 from quaternion import Quaternion
 
@@ -33,13 +33,39 @@ class MEKF:
         
         self.del_x = Vector(0,0,0,0,0,0)
 
-    def measurement_update(self, acc_measure, mag_measure):
-        b = mag_measure.unit_vector
-        g = acc_measure.unit_vector
+    def measurement_update(self, acc_measure, mag_measure, inertial_propagation = -1):
+        if inertial_propagation == -1:
+            g_inertial = Vector(self.inertial_acc_mag.matrix[0:3])
+            b_inertial = Vector(self.inertial_acc_mag.matrix[3:6])
+        b_meas = mag_measure.unit_vector
+        g_meas = acc_measure.unit_vector
         ## Has to be completed
         if self.first_estimate_done:
             
             pass
+        else:
+            ## Applying TRIAD
+            v1 = g_meas
+            v2 = v1.skew() * b_meas
+            v2.normalize()
+            v3 = v1.skew() * v2
+
+            V = Matrix.from_list([v1, v2, v3]).transpose()
+
+            w1 = g_meas
+            w2 = w1.skew() * b_meas
+            w2.normalize()
+            w3 = w1.skew() * w2
+
+            W = Matrix.from_list([w1, w2, w3]).transpose()
+
+            A_start = W * V.transpose()
+
+            q_start = quaternion_from_attitude_matrix(A_start)
+            self.q_est = q_start
+            self.q_prop = q_start
+            self.q_ref = q_start
+            self.first_estimate_done = True
         
     def predict_state(self, omega_meas):
 

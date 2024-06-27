@@ -64,6 +64,39 @@ class Quaternion(Vector):
             [2*x*z + 2*w*y, 2*y*z - 2*w*x, 1 - 2*x**2 - 2*y**2]
         ])
 
+def quaternion_from_attitude_matrix(matrix):
+    if not isinstance(matrix, Matrix) or matrix.shape != (3, 3):
+        raise ValueError("Input must be a 3x3 matrix")
+
+    m = matrix.to_list()  # Assuming Matrix class has to_list method returning a nested list
+    trace = m[0][0] + m[1][1] + m[2][2]
+
+    if trace > 0:
+        s = (trace + 1) ** 0.5 * 2
+        w = 0.25 * s
+        x = (-m[2][1] + m[1][2]) / s
+        y = (-m[0][2] + m[2][0]) / s
+        z = (-m[1][0] + m[0][1]) / s
+    elif m[0][0] > m[1][1] and m[0][0] > m[2][2]:
+        s = (1 + m[0][0] - m[1][1] - m[2][2]) ** 0.5 * 2
+        w = (-m[2][1] + m[1][2]) / s
+        x = 0.25 * s
+        y = (m[0][1] + m[1][0]) / s
+        z = (m[0][2] + m[2][0]) / s
+    elif m[1][1] > m[2][2]:
+        s = (1 + m[1][1] - m[0][0] - m[2][2]) ** 0.5 * 2
+        w = (-m[0][2] + m[2][0]) / s
+        x = (m[0][1] + m[1][0]) / s
+        y = 0.25 * s
+        z = (m[1][2] + m[2][1]) / s
+    else:
+        s = (1 + m[2][2] - m[0][0] - m[1][1]) ** 0.5 * 2
+        w = (-m[1][0] + m[0][1]) / s
+        x = (m[0][2] + m[2][0]) / s
+        y = (m[1][2] + m[2][1]) / s
+        z = 0.25 * s
+
+    return Quaternion(w, x, y, z)
     
 # Usage example
 q = Quaternion(1, 0, 1, 0)
