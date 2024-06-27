@@ -6,7 +6,7 @@ This repository contains a MATLAB function to be used in a Simulink model for im
 
 ### Description
 
-This function performs attitude estimation using MEKF based on measurements from onboard sensors(sun-sensor and magnetometer). It uses the following inputs and provides the estimated quaternion as the output. 
+This function performs attitude estimation using MEKF based on measurements from onboard sensors (sun-sensor and magnetometer). It uses the following inputs and provides the estimated quaternion as the output. 
 
 ### Usage Instructions
 
