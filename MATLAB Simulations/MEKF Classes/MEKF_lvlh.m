@@ -68,8 +68,8 @@ classdef MEKF_lvlh
 
         function obj = measurement_update(obj, zk, sun_prop_lvlh, mag_prop_lvlh)
             
-            % zk is the measurement in body frame
-            % Taking the measurement as sun vector followed by magnetic field vector,
+            % zk is the measurement(6 * 1) in body frame
+            % Taking the measurement vector z as sun vector followed by magnetic field vector
             
             if obj.first_estimate_done == true
 
