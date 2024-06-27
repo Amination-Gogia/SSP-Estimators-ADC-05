@@ -19,11 +19,11 @@ function q  = mekf_lvlh_block(omega_meas, sun_measurement_body, mag_measurement_
     %   q: quaternion of the body frame w.r.t. the orbit frame as a column vector
 
     % Persistent variable means that the function remembers this variable between function calls
-    persistent mekf_new
+    persistent mekf
 
-    if isempty(mekf_new)
+    if isempty(mekf)
 
-        % Initialise an instance of the mekf_new class
+        % Initialise an instance of the mekf class
         % These values can be edited once we have done sensor modelling 
         % And tested various values
 
@@ -33,24 +33,24 @@ function q  = mekf_lvlh_block(omega_meas, sun_measurement_body, mag_measurement_
         dt = 0.1; % Example time step
         std_dev_process = [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]; % Example values
 
-        mekf_new = MEKF_lvlh(R_input, P_start, x_init, dt, std_dev_process);
+        mekf = MEKF_lvlh(R_input, P_start, x_init, dt, std_dev_process);
     end
 
 
     % Reset the MEKF object if required
-    if norm(mekf_new.del_x (1:3)) > pi/18 % choosing when we want to reset the del_x and quaternion; this can be changed too
-        mekf_new.reset();
+    if norm(mekf.del_x (1:3)) > pi/18 % choosing when we want to reset the del_x and quaternion; this can be changed too
+        mekf.reset();
     end
 
     
     % Measurement update 
     zk = [sun_measurement_body; mag_measurement_body];
-    mekf_new = measurement_update(mekf_new, zk, sun_propagated_lvlh, mag_propagated_lvlh);
+    mekf = measurement_update(mekf, zk, sun_propagated_lvlh, mag_propagated_lvlh);
     
     % Predict the state
-    mekf_new = predict_state(mekf_new, omega_meas, pos_vec, vel_vec);
+    mekf = predict_state(mekf, omega_meas, pos_vec, vel_vec);
     
 
-    q = mekf_new.q_est; % The estimate of the quaternion of body frame w.r.t orbit frame
+    q = mekf.q_est; % The estimate of the quaternion of body frame w.r.t orbit frame
 end
 
