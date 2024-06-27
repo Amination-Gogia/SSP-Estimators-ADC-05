@@ -3,7 +3,7 @@
 ## Contents
 
 ### Matlab Simulations
-- **[adc02revised folder](./Matlab%20Simulations/adc02revised)**: 
+- **[adc02revised folder](./MATLAB%20Simulations/adc02revised)**: 
   - MATLAB Classes 'MEKF' and 'MEKF_lvlh' for Multiplicative Extended Kalman Filtering
 
 ### Matrix Lib
