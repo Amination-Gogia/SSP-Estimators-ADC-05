@@ -18,7 +18,8 @@ dt = 0.1  # 10 ms
 num_steps = 100
 
 # Initial quaternion (identity, no rotation)
-initial_quaternion = Quaternion(1, 0, 0, 0)
+initial_quaternion = Quaternion(1, 0, 1, 0)
+initial_quaternion.normalize()
 
 # Generate random angular velocity measurements (omega_meas)
 np.random.seed(42)  # For reproducibility
