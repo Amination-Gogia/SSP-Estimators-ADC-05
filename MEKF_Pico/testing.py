@@ -62,8 +62,8 @@ inertial_acc_mag = Vector(gravity[0], gravity[1], gravity[2], magnetic_field[0],
 mekf = MEKF(R_input, P_start, x_init, inertial_acc_mag, dt, std_dev_process)
 
 # Measurements (simulated as slightly noisy versions of true values)
-acc_measurements = [Quaternion(*true_quat_array[_]).attitude_matrix() * gravity + Vector(np.random.normal(0.1, 0.001), np.random.normal(-0.1, 0.1), np.random.normal(-0.1, 0.1)) for _ in range(num_steps)]
-mag_measurements = [Quaternion(*true_quat_array[_]).attitude_matrix() * magnetic_field + Vector(np.random.normal(0.1, 0.001), np.random.normal(-0.1, 0.1), np.random.normal(-0.1, 0.1)) for _ in range(num_steps)]
+acc_measurements = [Quaternion(*true_quat_array[_]).attitude_matrix() * gravity + Vector(np.random.normal(0.1, 0.01), np.random.normal(-0.1, 0.1), np.random.normal(-0.1, 0.1)) for _ in range(num_steps)]
+mag_measurements = [Quaternion(*true_quat_array[_]).attitude_matrix() * magnetic_field + Vector(np.random.normal(0.1, 0.01), np.random.normal(-0.1, 0.1), np.random.normal(-0.1, 0.1)) for _ in range(num_steps)]
 
 # Run MEKF over the generated data
 estimated_quaternions = [initial_quaternion]
