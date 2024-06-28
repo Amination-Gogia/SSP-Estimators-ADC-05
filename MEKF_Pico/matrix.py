@@ -100,10 +100,10 @@ class Matrix:
         return identity_matrix
 
     @classmethod
-    def zeros(cls, size):
-        zero_matrix = cls(size, size)
-        for i in range(size):
-            for j in range(size):
+    def zeros(cls, r, c):
+        zero_matrix = cls(r, c)
+        for i in range(r):
+            for j in range(c):
                 zero_matrix.matrix[i][j] = 0
         return zero_matrix
     @classmethod
@@ -111,7 +111,7 @@ class Matrix:
         m = len(args)
         temp = cls(m,m)
         for i in range(m):
-            temp.matrix[i][i] = args[m]
+            temp.matrix[i][i] = args[i]
         return temp
 
     def is_square(self):

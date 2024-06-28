@@ -1,6 +1,6 @@
-from matrix import Matrix, quaternion_from_attitude_matrix
+from matrix import Matrix
 from vector import Vector
-from quaternion import Quaternion
+from quaternion import Quaternion, quaternion_from_attitude_matrix
 
 def sensitivity_matrix(pred_meas):
     ## pred_meas is expected to contain the unit vectors along measured acceleration and measured magnetic field
@@ -9,10 +9,10 @@ def sensitivity_matrix(pred_meas):
     g_pred = Vector(pred_meas[0], pred_meas[1], pred_meas[2])
     b_pred = Vector(pred_meas[3], pred_meas[4], pred_meas[5])
 
-    g_skew = g_pred.cross_pdt_matrix()
-    b_skew = b_pred.cross_pdt_matrix()
+    g_skew = g_pred.cross_pdt_matrix
+    b_skew = b_pred.cross_pdt_matrix
     
-    o3 = Matrix.zeros(3)
+    o3 = Matrix.zeros(3,3)
 
     H = Matrix(6,6)
 
@@ -71,8 +71,8 @@ class MEKF:
 
     def measurement_update(self, acc_measure, mag_measure, inertial_propagation = -1):
         if inertial_propagation == -1:
-            g_inertial = Vector(self.inertial_acc_mag[0], self.ineartial_acc_mag[1], self.inertial_acc_mag[2])
-            b_inertial = Vector(self.inertial_acc_mag[3], self.ineartial_acc_mag[4], self.inertial_acc_mag[5])
+            g_inertial = Vector(self.z_reference[0], self.z_reference[1], self.z_reference[2])
+            b_inertial = Vector(self.z_reference[3], self.z_reference[4], self.z_reference[5])
         else:
             g_inertial = Vector(inertial_propagation[0], inertial_propagation[1], inertial_propagation[2])
             b_inertial = Vector(inertial_propagation[3], inertial_propagation[4], inertial_propagation[5])    
@@ -110,16 +110,16 @@ class MEKF:
         else:
             ## Applying TRIAD
             v1 = g_inertial
-            v2 = v1.skew() * b_inertial
+            v2 = v1.cross_pdt_matrix * b_inertial
             v2.normalize()
-            v3 = v1.skew() * v2
+            v3 = v1.cross_pdt_matrix * v2
 
             V = Matrix.from_list([v1, v2, v3]).transpose()
 
             w1 = g_meas
-            w2 = w1.skew() * b_meas
+            w2 = w1.cross_pdt_matrix * b_meas
             w2.normalize()
-            w3 = w1.skew() * w2
+            w3 = w1.cross_pdt_matrix * w2
 
             W = Matrix.from_list([w1, w2, w3]).transpose()
 
@@ -133,10 +133,10 @@ class MEKF:
         
     def predict_state(self, omega_meas):
 
-        bias = Vector(self.del_x[0], self.del_x[1], self.del_x[2])
+        bias = Vector(self.x_prop[0], self.x_prop[1], self.x_prop[2])
         w = omega_meas - bias
         dt = self.dt_prop
-        w_cross = w.skew()
+        w_cross = w.cross_pdt_matrix
 
         F = Matrix.zeros(6,6)
 
@@ -171,7 +171,7 @@ class MEKF:
                 Q_k[i][3 + j] = Q2[i][j]
                 Q_k[3 + i][3 + j] = Q4[i][j]
 
-        self.P_pre = phi * self.P_prop * phi.transpose()
+        self.P_pre = phi * self.P_prop * phi.transpose() + Q_k
         self.P_prop = self.P_pre
 
         eps = self.q_prop.epsilon()
