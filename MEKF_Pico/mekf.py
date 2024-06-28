@@ -2,6 +2,42 @@ from matrix import Matrix, quaternion_from_attitude_matrix
 from vector import Vector
 from quaternion import Quaternion
 
+def sensitivity_matrix(pred_meas):
+    ## pred_meas is expected to contain the unit vectors along measured acceleration and measured magnetic field
+    assert(isinstance(pred_meas, Vector) and pred_meas.shape == (3,1), 'acc_prop inner should be a 3 * 1 vector')
+
+    g_pred = Vector(pred_meas[0], pred_meas[1], pred_meas[2])
+    b_pred = Vector(pred_meas[3], pred_meas[4], pred_meas[5])
+
+    g_skew = g_pred.cross_pdt_matrix()
+    b_skew = b_pred.cross_pdt_matrix()
+    
+    o3 = Matrix.zeros(3)
+
+    H = Matrix(6,6)
+
+    for i in range(3):
+        for j in range(3):
+            H[i][j] = g_skew[i][j]
+            H[3 + i][j] = b_skew[i][j]
+            H[3 + i][3 + j] = o3[i][j]
+            H[i][3 + j] = o3[i][j]
+    return H
+
+def pred_measurement(q_curr, acc_prop_iner, mag_prop_iner):
+    assert(isinstance(q_curr, Quaternion), 'First argument passed to pred_measurement should be a Quaternion')
+    A = q_curr.attitude_matrix()
+
+    assert(isinstance(acc_prop_iner, Vector) and acc_prop_iner.shape == (3,1), 'acc_prop inner should be a 3 * 1 vector')
+    assert(isinstance(mag_prop_iner, Vector) and mag_prop_iner.shape == (3,1), 'mag_prop inner should be a 3 * 1 vector')
+
+    b_rotated = A * mag_prop_iner
+    g_rotated = A * acc_prop_iner
+
+    hxk = Vector(g_rotated[0], g_rotated[1], g_rotated[2], b_rotated[0], b_rotated[1], b_rotated[2])
+
+    return hxk
+
 class MEKF:
 
     def __init__(self, R_input, P_start, x_init, inertial_acc_mag, dt, std_dev_process):
@@ -35,18 +71,46 @@ class MEKF:
 
     def measurement_update(self, acc_measure, mag_measure, inertial_propagation = -1):
         if inertial_propagation == -1:
-            g_inertial = Vector(self.inertial_acc_mag.matrix[0:3])
-            b_inertial = Vector(self.inertial_acc_mag.matrix[3:6])
+            g_inertial = Vector(self.inertial_acc_mag[0], self.ineartial_acc_mag[1], self.inertial_acc_mag[2])
+            b_inertial = Vector(self.inertial_acc_mag[3], self.ineartial_acc_mag[4], self.inertial_acc_mag[5])
+        else:
+            g_inertial = Vector(inertial_propagation[0], inertial_propagation[1], inertial_propagation[2])
+            b_inertial = Vector(inertial_propagation[3], inertial_propagation[4], inertial_propagation[5])    
+        
         b_meas = mag_measure.unit_vector
         g_meas = acc_measure.unit_vector
         ## Has to be completed
         if self.first_estimate_done:
-            
-            pass
+            Rk = self.R
+
+            hxk = pred_measurement(self.q_prop, g_inertial, b_inertial)
+
+            H = sensitivity_matrix(hxk)
+
+            P_pro = self.P_prop
+            H_T = H.transpose()
+            S = H * P_pro * H_T + Rk
+            K = (P_pro * H_T) * S.inverse()
+
+            zk = Vector(acc_measure[0], acc_measure[1], acc_measure[2], mag_measure[0], mag_measure[1], mag_measure[2])
+            K_del_z = K * (zk - hxk)
+            self.del_x = self.del_x + K_del_z
+
+            del_theta = Vector(K_del_z[0], K_del_z[1], K_del_z[2])
+            self.q_est = self.q_prop + 0.5 * self.q_prop.epsilon() * del_theta
+            self.q_est.normalize()
+
+            I6 = Matrix.identity(6)
+
+            self.x_prop = self.x_ref + self.del_x
+            self.P_prop = (I6 - K * H) * self.P_prop
+
+            self.q_prop = self.q_est
+
         else:
             ## Applying TRIAD
-            v1 = g_meas
-            v2 = v1.skew() * b_meas
+            v1 = g_inertial
+            v2 = v1.skew() * b_inertial
             v2.normalize()
             v3 = v1.skew() * v2
 
@@ -89,8 +153,8 @@ class MEKF:
         self.x_prop = self.x_prop + F * self.del_x * dt
         self.del_x = phi * self.del_x
 
-        sigma_gyro_bias = Matrix.diagonal(*(self.std_dev_gyro.matrix[0:3]))
-        sigma_gyro_noise = Matrix.diagonal(*(self.std_dev_gyro.matrix[3:6]))
+        sigma_gyro_bias = Matrix.diagonal(self.std_dev_gyro[0], self.std_dev_gyro[1], self.std_dev_gyro[2])
+        sigma_gyro_noise = Matrix.diagonal(self.std_dev_gyro[3], self.std_dev_gyro[4], self.std_dev_gyro[5])
         sigma_gyro_bias = sigma_gyro_bias * sigma_gyro_bias
         sigma_gyro_noise = sigma_gyro_noise * sigma_gyro_noise 
         
@@ -114,3 +178,4 @@ class MEKF:
         self.q_est = self.q_prop + 0.5 * eps * w * dt
         self.q_est.normalize()
         self.q_prop = self.q_est 
+    
