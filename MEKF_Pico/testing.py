@@ -15,7 +15,7 @@ magnetic_field = Vector(0.5, 0, 0.5).unit_vector
 dt = 0.1  # 10 ms
 
 # Number of time steps
-num_steps = 100
+num_steps = 1000
 
 # Initial quaternion (identity, no rotation)
 initial_quaternion = Quaternion(1, 0, 1, 0)
@@ -24,18 +24,28 @@ initial_quaternion.normalize()
 # Generate random angular velocity measurements (omega_meas)
 np.random.seed(42)  # For reproducibility
 
-omega = 3
-omega_actual = [Vector(omega, omega, omega) for i in range(num_steps)]
-omega_meas = [Vector(omega + np.random.uniform(-0.1, 0.1), 
-                     omega + np.random.uniform(-0.1, 0.1), 
-                     omega + np.random.uniform(-0.1, 0.1)) for _ in range(num_steps)]
+bx, by, bz = 0.1, 0.08, 0.09
+omega_x, omega_y, omega_z = 0.5, 0.2, 0.3
+
+alpha_x, alpha_y, alpha_z = 0.2, 0.1, 0.3
+alpha = Vector(alpha_x, alpha_y, alpha_z)
+
+omega_actual = [Vector(omega_x, omega_y, omega_z) for i in range(num_steps)]
+omega_meas = [ Vector(bx +omega_x + np.random.uniform(-0.05, 0.05), 
+                     by + omega_y + np.random.uniform(-0.05, 0.05), 
+                     bz + omega_z + np.random.uniform(-0.05, 0.05)) for _ in range(num_steps)]
 
 # Generate ground truth quaternions
 true_quaternions = [initial_quaternion]
 for omega in omega_actual:
-    q = true_quaternions[-1]
+    # q = true_quaternions[-1]
     
-    q_next = q + q.epsilon() * 0.5 * omega * dt
+    # q_next = q + q.epsilon() * 0.5 * (omega)* dt
+    # q_next.normalize()
+    # true_quaternions.append(q_next)
+    q = true_quaternions[-1]
+    dq = Quaternion(0, omega[0], omega[1], omega[2]) * q * (0.5 * dt)
+    q_next = q + dq
     q_next.normalize()
     true_quaternions.append(q_next)
 
@@ -45,7 +55,7 @@ true_quat_array = np.array([[q.w, q.x, q.y, q.z] for q in true_quaternions])
 # Initialize MEKF
 R_input = 0.0001*  Matrix.identity(6)
 P_start = 0.0001 * Matrix.identity(6)
-x_init = Vector(0, 0, 0, 0, 0, 0)
+x_init = Vector(0, 0, 0, bx, by, bz)
 std_dev_process = Vector(0.01, 0.01, 0.01, 0.001,0.001, 0.001)
 inertial_acc_mag = Vector(gravity[0], gravity[1], gravity[2], magnetic_field[0], magnetic_field[1], magnetic_field[2])
 
