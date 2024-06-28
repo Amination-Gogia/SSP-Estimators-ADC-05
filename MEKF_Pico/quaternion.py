@@ -2,6 +2,7 @@ from vector import Vector
 from matrix import Matrix
 
 class Quaternion(Vector):
+    # Scalar Component First
     def __init__(self, w, x, y, z):
         super().__init__(w, x, y, z)
 

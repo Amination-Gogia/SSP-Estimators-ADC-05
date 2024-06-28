@@ -99,7 +99,10 @@ class Vector(Matrix):
         
         else:
             raise TypeError(f'Unsupported operand type(s) for *: {type(self)} and {type(other)}')
-        
-I = Matrix.identity(4)
-v = Vector(1, 2, 3, 4)
+
+
+if __name__ == '__main__':
+    ## Example Usage       
+    I = Matrix.identity(4)
+    v = Vector(1, 2, 3, 4)
 # print(type(2 * v))
