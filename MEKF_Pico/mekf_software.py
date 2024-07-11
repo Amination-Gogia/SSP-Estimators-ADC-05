@@ -149,7 +149,7 @@ class MEKF:
 
             ## Calculation of correction in del_x
             zk = Vector(acc_measure[0], acc_measure[1], acc_measure[2], mag_measure[0], mag_measure[1], mag_measure[2])
-            K_del_z = (zk - hxk).__rmul__(K) ## (zk is the clubbed measurement vector: acc_meas, mag_meas)
+            K_del_z = K * (zk - hxk) ## (zk is the clubbed measurement vector: acc_meas, mag_meas)
             self.del_x = self.del_x + K_del_z ## del_x(+) = del_x(-) + K(zk - h(xk))
 
             ## Correction in q_est
@@ -173,10 +173,10 @@ class MEKF:
 
             ## First Triad of vectors in reference frame 'V'
             v1 = g_inertial
-            v2 = b_inertial.__rmul__(v1.cross_pdt_matrix)   # v1.cross_pdt_matrix * b_inertial
+            v2 = v1.cross_pdt_matrix * b_inertial
             v2.normalize()
-            v3 = v2.__rmul__(v1.cross_pdt_matrix) ##v1.cross_pdt_matrix * v2
-            print("We're here")
+            v3 = v1.cross_pdt_matrix * v2
+
             V = Matrix.from_list([v1, v2, v3]).transpose()
 
             ## Secong Triad of vectors in body frame 'W'

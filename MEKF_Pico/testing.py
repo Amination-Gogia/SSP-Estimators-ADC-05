@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mekf import MEKF
+from mekf_software import MEKF
 from matrix import Matrix
 from vector import Vector
 from quaternion import Quaternion
@@ -9,8 +9,8 @@ from quaternion import Quaternion
 gravity = Vector(0, 0, -1)
 
 # Magnetic field vector (some arbitrary fixed direction)
-magnetic_field = Vector(0.5, 0, 0.5).unit_vector
-
+magnetic_field = Vector(0.5, 0.5, 0.3).unit_vector
+magnetic_field_foolish = magnetic_field ## Vector(1, 0, 0).unit_vector
 # Time step
 dt = 0.1  # 10 ms
 
@@ -25,15 +25,15 @@ initial_quaternion.normalize()
 np.random.seed(42)  # For reproducibility
 
 bx, by, bz = 0.1, 0.08, 0.09
-omega_x, omega_y, omega_z = 0.5, 0.2, 0.3
+omega_x, omega_y, omega_z = 0.5, 0.4, 0.3
 
 alpha_x, alpha_y, alpha_z = 0.2, 0.1, 0.3
 alpha = Vector(alpha_x, alpha_y, alpha_z)
 
 omega_actual = [Vector(omega_x, omega_y, omega_z) for i in range(num_steps)]
-omega_meas = [ Vector(bx +omega_x + np.random.uniform(-0.05, 0.05), 
-                     by + omega_y + np.random.uniform(-0.05, 0.05), 
-                     bz + omega_z + np.random.uniform(-0.05, 0.05)) for _ in range(num_steps)]
+omega_meas = [ Vector(bx +omega_x + np.random.uniform(-0.001, 0.001), 
+                     by + omega_y + np.random.uniform(-0.001, 0.001), 
+                     bz + omega_z + np.random.uniform(-0.001, 0.001)) for _ in range(num_steps)]
 
 # Generate ground truth quaternions
 true_quaternions = [initial_quaternion]
@@ -55,9 +55,9 @@ true_quat_array = np.array([[q.w, q.x, q.y, q.z] for q in true_quaternions])
 # Initialize MEKF
 R_input = 0.0001*  Matrix.identity(6)
 P_start = 0.0001 * Matrix.identity(6)
-x_init = Vector(0, 0, 0, bx, by, bz)
+x_init = Vector(0, 0, 0, bx , by, bz)
 std_dev_process = Vector(0.01, 0.01, 0.01, 0.001,0.001, 0.001)
-inertial_acc_mag = Vector(gravity[0], gravity[1], gravity[2], magnetic_field[0], magnetic_field[1], magnetic_field[2])
+inertial_acc_mag = Vector(gravity[0], gravity[1], gravity[2], magnetic_field_foolish[0], magnetic_field_foolish[1], magnetic_field_foolish[2])
 
 mekf = MEKF(R_input, P_start, x_init, inertial_acc_mag, dt, std_dev_process)
 

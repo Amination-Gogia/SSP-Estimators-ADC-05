@@ -48,8 +48,8 @@ def pred_measurement(q_curr, acc_prop_iner, mag_prop_iner):
     assert(isinstance(mag_prop_iner, Vector) and mag_prop_iner.shape == (3,1), 'mag_prop inner should be a 3 * 1 vector')
 
     ## Transforming the reference frame vectors to the body frame
-    b_rotated = A * mag_prop_iner
-    g_rotated = A * acc_prop_iner
+    b_rotated = mag_prop_iner.__rmul__(A)
+    g_rotated = acc_prop_iner.__rmul__(A)
 
     ## Concatenating the predicted measurements into one predicted measurement vector
     hxk = Vector(g_rotated[0], g_rotated[1], g_rotated[2], b_rotated[0], b_rotated[1], b_rotated[2])
@@ -94,7 +94,7 @@ class MEKF:
         eps = self.q_est.epsilon()
         del_theta = Vector(self.del_x[0], self.del_x[1], self.del_x[2])
 
-        self.q_ref = self.q_ref + 0.5 * eps * del_theta
+        self.q_ref = self.q_ref + 0.5 * del_theta.__rmul__(eps)
         self.q_ref.normalize()
 
         ## Gyro bias update
@@ -156,7 +156,7 @@ class MEKF:
             ## del_theta: the small correction angle about which body frame is to be rotated
             ## del_theta measured in frame represented by q_prop
             del_theta = Vector(K_del_z[0], K_del_z[1], K_del_z[2]) 
-            self.q_est = self.q_prop + 0.5 * self.q_prop.epsilon() * del_theta
+            self.q_est = self.q_prop + 0.5 * del_theta.__rmul__(self.q_prop.epsilon())
             self.q_est.normalize()
 
             I6 = Matrix.identity(6)
@@ -173,20 +173,30 @@ class MEKF:
 
             ## First Triad of vectors in reference frame 'V'
             v1 = g_inertial
-            v2 = b_inertial.__rmul__(v1.cross_pdt_matrix)   # v1.cross_pdt_matrix * b_inertial
+            #v2 = v1.cross_pdt_matrix * b_inertial
+            #v2.normalize()
+            v2 = b_inertial.__rmul__(v1.cross_pdt_matrix)
             v2.normalize()
-            v3 = v2.__rmul__(v1.cross_pdt_matrix) ##v1.cross_pdt_matrix * v2
-            print("We're here")
+            v3 = v2.__rmul__(v1.cross_pdt_matrix)
+            
+            #matrix has attribute transpose so conversion is needed
             V = Matrix.from_list([v1, v2, v3]).transpose()
 
             ## Secong Triad of vectors in body frame 'W'
             w1 = g_meas
-            w2 = w1.cross_pdt_matrix * b_meas
+            w2 = b_meas.__rmul__(w1.cross_pdt_matrix)
             w2.normalize()
-            w3 = w1.cross_pdt_matrix * w2
-
+            w3 = w2.__rmul__(w1.cross_pdt_matrix)
+            
             W = Matrix.from_list([w1, w2, w3]).transpose()
-
+            
+            print(type(v1))
+            print(type(v2))
+            print(type(v3))
+            print(type(w1))
+            print(type(w2))
+            print(type(w3))
+            
             ## The attitude matrix at the start of filtering action, A_start
             A_start = W * V.transpose()
 
@@ -226,8 +236,8 @@ class MEKF:
         phi = I6 + F * dt
 
         ## Predicting del_x
-        self.x_prop = self.x_prop + F * self.del_x * dt ## x_prop(t) = x_prop(t - 1) + F * del_x(t - 1)
-        self.del_x = phi * self.del_x ## del_x(t) = phi * del_x(t - 1)
+        self.x_prop = self.x_prop + self.del_x.__rmul__(F) * dt ## x_prop(t) = x_prop(t - 1) + F * del_x(t - 1)
+        self.del_x = self.del_x.__rmul__(phi) ## del_x(t) = phi * del_x(t - 1)
 
         ## Process noise calculation
         ## Q_k calculation, this still has to be confirmed but seems to work
@@ -256,7 +266,7 @@ class MEKF:
 
         ## Predicting the quaternion
         eps = self.q_prop.epsilon()
-        self.q_est = self.q_prop + 0.5 * eps * w * dt 
+        self.q_est = self.q_prop + 0.5 * w.__rmul__(eps)* dt 
         self.q_est.normalize()
         self.q_prop = self.q_est ## keeping latest quaternion in propagation
     

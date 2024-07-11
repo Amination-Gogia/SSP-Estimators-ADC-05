@@ -135,20 +135,63 @@ class Matrix:
     def _get_minor(self, mat, i, j):
         return [row[:j] + row[j+1:] for row in (mat[:i] + mat[i+1:])]
 
+    # def inverse(self):
+    #     if not self.is_square():
+    #         raise ValueError("Inverse is only defined for square matrices.")
+    #     det = self.determinant()
+    #     if det == 0:
+    #         raise ValueError("Matrix is not invertible (determinant is zero).")
+    #     return self._compute_inverse()
+
+    # def _compute_inverse(self):
+    #     n = self.shape[0]
+    #     matrix_of_minors = [[self._compute_determinant(self._get_minor(self.matrix, i, j)) for j in range(n)] for i in range(n)]
+    #     cofactors = [[matrix_of_minors[i][j] * ((-1) ** (i + j)) for j in range(n)] for i in range(n)]
+    #     adjugate = Matrix.from_list(cofactors).transpose()
+    #     inverse_matrix = (1 / self.determinant()) * adjugate
+    #     return inverse_matrix
+
+    def lu_decomposition(self):
+        if not self.is_square():
+            raise ValueError("LU decomposition is only defined for square matrices.")
+        n = self.shape[0]
+        L = Matrix.identity(n)
+        U = Matrix.zeros(n, n)
+        
+        for i in range(n):
+            for j in range(i, n):
+                sum_u = sum(L.matrix[i][k] * U.matrix[k][j] for k in range(i))
+                U.matrix[i][j] = self.matrix[i][j] - sum_u
+
+            for j in range(i + 1, n):
+                sum_l = sum(L.matrix[j][k] * U.matrix[k][i] for k in range(i))
+                L.matrix[j][i] = (self.matrix[j][i] - sum_l) / U.matrix[i][i]
+
+        return L, U
+
     def inverse(self):
         if not self.is_square():
             raise ValueError("Inverse is only defined for square matrices.")
-        det = self.determinant()
-        if det == 0:
-            raise ValueError("Matrix is not invertible (determinant is zero).")
-        return self._compute_inverse()
-
-    def _compute_inverse(self):
+        L, U = self.lu_decomposition()
         n = self.shape[0]
-        matrix_of_minors = [[self._compute_determinant(self._get_minor(self.matrix, i, j)) for j in range(n)] for i in range(n)]
-        cofactors = [[matrix_of_minors[i][j] * ((-1) ** (i + j)) for j in range(n)] for i in range(n)]
-        adjugate = Matrix.from_list(cofactors).transpose()
-        inverse_matrix = (1 / self.determinant()) * adjugate
+
+        # Create identity matrix for inverse calculation
+        I = Matrix.identity(n)
+        inverse_matrix = Matrix.zeros(n, n)
+
+        # Solve LY = I for Y using forward substitution
+        Y = Matrix.zeros(n, n)
+        for j in range(n):
+            for i in range(n):
+                sum_y = sum(L.matrix[i][k] * Y.matrix[k][j] for k in range(i))
+                Y.matrix[i][j] = I.matrix[i][j] - sum_y
+
+        # Solve UX = Y for X using backward substitution
+        for j in range(n):
+            for i in range(n - 1, -1, -1):
+                sum_x = sum(U.matrix[i][k] * inverse_matrix.matrix[k][j] for k in range(i + 1, n))
+                inverse_matrix.matrix[i][j] = (Y.matrix[i][j] - sum_x) / U.matrix[i][i]
+
         return inverse_matrix
 
 
