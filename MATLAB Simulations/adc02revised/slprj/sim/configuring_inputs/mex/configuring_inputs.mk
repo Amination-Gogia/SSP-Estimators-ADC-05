@@ -82,7 +82,7 @@ PRODUCT                 = $(RELATIVE_PATH_TO_ANCHOR)\configuring_inputs_msf.mexw
 MAKEFILE                = configuring_inputs.mk
 MATLAB_ROOT             = C:\Program Files\MATLAB\R2024a
 ALT_MATLAB_ROOT         = C:\PROGRA~1\MATLAB\R2024a
-START_DIR               = C:\EKFATT~1\MATLAB~1\ADC02R~1
+START_DIR               = D:\EKF Attempt\MATLAB Simulations\adc02revised
 S_FUNCTIONS_LIB         = $(START_DIR)\slprj\sim\_sharedutils\rtwshared.lib
 NUMST                   = 2
 NCSTATES                = 0
@@ -116,7 +116,7 @@ DEBUG_BUILD             = 0
 
 #--------------------------- Model and reference models -----------------------
 MODELLIB                  = configuring_inputs_msf.mexw64
-MODELREF_LINK_LIBS        = "C:\EKF Attempt\MATLAB Simulations\adc02revised\slprj\sim\configuring_inputs\configuring_inputslib.lib"
+MODELREF_LINK_LIBS        = "D:\EKF Attempt\MATLAB Simulations\adc02revised\slprj\sim\configuring_inputs\configuring_inputslib.lib"
 MODELREF_LINK_RSPFILE     = configuring_inputs_ref.rsp
 COMPILER_COMMAND_FILE     = configuring_inputs_comp.rsp
 RELATIVE_PATH_TO_ANCHOR   = ..\..\..\..

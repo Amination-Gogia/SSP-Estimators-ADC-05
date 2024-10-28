@@ -142,6 +142,8 @@ classdef MEKF_lvlh
                 % and corresponding attitude matrix A_start
                 A_start = W * V';
                 q_start = quaternion_from_attitude(A_start);
+                %q_start = [0.71; 0.71; 0; 0];
+            
                 
                 % Initialising the filter properties, with the attitude estimate calculated
                 obj.q_prop = q_start;

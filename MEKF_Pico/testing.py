@@ -4,8 +4,9 @@ from mekf_software import MEKF
 from matrix import Matrix
 from vector import Vector
 from quaternion import Quaternion
-
+from time import time
 # Gravity vector (pointing downward along the z-axis)
+t0 = time()
 gravity = Vector(0, 0, -1)
 
 # Magnetic field vector (some arbitrary fixed direction)
@@ -31,9 +32,9 @@ alpha_x, alpha_y, alpha_z = 0.2, 0.1, 0.3
 alpha = Vector(alpha_x, alpha_y, alpha_z)
 
 omega_actual = [Vector(omega_x, omega_y, omega_z) for i in range(num_steps)]
-omega_meas = [ Vector(bx +omega_x + np.random.uniform(-0.001, 0.001), 
-                     by + omega_y + np.random.uniform(-0.001, 0.001), 
-                     bz + omega_z + np.random.uniform(-0.001, 0.001)) for _ in range(num_steps)]
+omega_meas = [ Vector(bx +omega_x + np.random.uniform(-0.0005, 0.0005), 
+                     by + omega_y + np.random.uniform(-0.0005, 0.0005), 
+                     bz + omega_z + np.random.uniform(-0.0005, 0.0005)) for _ in range(num_steps)]
 
 # Generate ground truth quaternions
 true_quaternions = [initial_quaternion]
@@ -53,8 +54,15 @@ for omega in omega_actual:
 true_quat_array = np.array([[q.w, q.x, q.y, q.z] for q in true_quaternions])
 
 # Initialize MEKF
-R_input = 0.0001*  Matrix.identity(6)
-P_start = 0.0001 * Matrix.identity(6)
+M = Matrix.from_list([[6, 2, 1, 0, 0, 0],
+                      [0, 5, 2, 0, 0, 0],
+                      [1, 2, 4, 1, 0, 0],
+                      [0, 0, 1, 3, 1, 0],
+                      [0, 0, 0, 1, 3, 1],
+                      [0, 0, 0, 0, 1, 2]])
+
+R_input = 0.0001 * M  # Positive semi-definite matrix
+P_start = 0.000001 * M
 x_init = Vector(0, 0, 0, bx , by, bz)
 std_dev_process = Vector(0.01, 0.01, 0.01, 0.001,0.001, 0.001)
 inertial_acc_mag = Vector(gravity[0], gravity[1], gravity[2], magnetic_field_foolish[0], magnetic_field_foolish[1], magnetic_field_foolish[2])
@@ -69,11 +77,13 @@ mag_measurements = [Quaternion(*true_quat_array[_]).attitude_matrix() * magnetic
 estimated_quaternions = [initial_quaternion]
 for i in range(num_steps):
     mekf.predict_state(omega_meas[i])
+    print(i)
     mekf.measurement_update(acc_measurements[i], mag_measurements[i])
     estimated_quaternions.append(mekf.q_est)
     if Vector(mekf.del_x[0], mekf.del_x[1], mekf.del_x[2]).modulus >= 3.14/180 * 5:
         mekf.reset()
-
+tf = time()
+print(tf - t0)
 # Convert to numpy array for easier plotting
 estimated_quat_array = np.array([[q.w, q.x, q.y, q.z] for q in estimated_quaternions])
 

@@ -66,10 +66,10 @@ MDL_INFO_ID_MODEL_FCN_NAME , 0 , - 1 , ( void * ) "configuring_inputs" } , {
 "configuring_inputs.h" , MDL_INFO_MODEL_FILENAME , 0 , - 1 , ( NULL ) } , {
 "configuring_inputs.c" , MDL_INFO_MODEL_FILENAME , 0 , - 1 , ( void * )
 "configuring_inputs" } } ; mtpbypmub4e mtpbypmub4 = { { 0.0 , 0.0 , 0.0 } , {
-0.0 , 0.0 , 0.0 } , 0.1 , 0.1 , 1.0 , 0.0 , 0.0 , 0.0 , 1.0 , 0.0 , 0.0 , 0.0
-, 1.0 , 0.0 , { 1.0 , 1.0 , 1.0 } } ; void gwczjw5orj ( real_T aqdrrwdfqa [ 3
-] , real_T eks12rzq1l [ 3 ] , real_T l1qoxp4kck [ 3 ] ) { aqdrrwdfqa [ 0 ] =
-mtpbypmub4 . P_0 [ 0 ] ; eks12rzq1l [ 0 ] = mtpbypmub4 . P_1 [ 0 ] ;
+0.0 , 0.0 , 0.0 } , 1.1 , 0.0 , 1.01 , 0.0 , 1.1 , 0.0 , 0.9 , 0.0 , 1.1 ,
+0.0 , 1.1 , 0.0 , { 1.0 , 1.0 , 1.0 } } ; void gwczjw5orj ( real_T aqdrrwdfqa
+[ 3 ] , real_T eks12rzq1l [ 3 ] , real_T l1qoxp4kck [ 3 ] ) { aqdrrwdfqa [ 0
+] = mtpbypmub4 . P_0 [ 0 ] ; eks12rzq1l [ 0 ] = mtpbypmub4 . P_1 [ 0 ] ;
 l1qoxp4kck [ 0 ] = mtpbypmub4 . P_14 [ 0 ] ; aqdrrwdfqa [ 1 ] = mtpbypmub4 .
 P_0 [ 1 ] ; eks12rzq1l [ 1 ] = mtpbypmub4 . P_1 [ 1 ] ; l1qoxp4kck [ 1 ] =
 mtpbypmub4 . P_14 [ 1 ] ; aqdrrwdfqa [ 2 ] = mtpbypmub4 . P_0 [ 2 ] ;

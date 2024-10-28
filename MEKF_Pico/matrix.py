@@ -193,14 +193,74 @@ class Matrix:
                 inverse_matrix.matrix[i][j] = (Y.matrix[i][j] - sum_x) / U.matrix[i][i]
 
         return inverse_matrix
+    def cholesky_decomposition(self):
+        if not self.is_square():
+            raise ValueError("Cholesky decomposition is only defined for square matrices.")
+        
+        n = self.shape[0]
+        L = Matrix.zeros(n, n)
 
+        for i in range(n):
+            for j in range(i + 1):
+                sum_val = sum(L.matrix[i][k] * L.matrix[j][k] for k in range(j))
+                if i == j:  # Diagonal elements
+                    L.matrix[i][j] = (self.matrix[i][i] - sum_val) ** 0.5
+                else:
+                    L.matrix[i][j] = (self.matrix[i][j] - sum_val) / L.matrix[j][j]
+        
+        return L
 
+    def inverse(self):
+        if not self.is_square():
+            raise ValueError("Inverse is only defined for square matrices.")
+        
+        # Use Cholesky decomposition for positive semi-definite matrices
+        try:
+            L = self.cholesky_decomposition()
+        except ValueError:
+            L, U = self.lu_decomposition()
+            n = self.shape[0]
 
+            # Create identity matrix for inverse calculation
+            I = Matrix.identity(n)
+            inverse_matrix = Matrix.zeros(n, n)
 
-    
-    
+            # Solve LY = I for Y using forward substitution
+            Y = Matrix.zeros(n, n)
+            for j in range(n):
+                for i in range(n):
+                    sum_y = sum(L.matrix[i][k] * Y.matrix[k][j] for k in range(i))
+                    Y.matrix[i][j] = I.matrix[i][j] - sum_y
 
-    
-# v = Vector(3,2,1,5)
-# v[3] = 10
-# print(v.modulus)
+            # Solve UX = Y for X using backward substitution
+            for j in range(n):
+                for i in range(n - 1, -1, -1):
+                    sum_x = sum(U.matrix[i][k] * inverse_matrix.matrix[k][j] for k in range(i + 1, n))
+                    inverse_matrix.matrix[i][j] = (Y.matrix[i][j] - sum_x) / U.matrix[i][i]
+            return inverse_matrix
+        else: 
+            n = self.shape[0]
+            L_inv = Matrix.zeros(n, n)
+
+            # Invert L using forward substitution
+            for i in range(n):
+                L_inv.matrix[i][i] = 1 / L.matrix[i][i]
+                for j in range(i + 1, n):
+                    sum_val = sum(L.matrix[j][k] * L_inv.matrix[k][i] for k in range(j))
+                    L_inv.matrix[j][i] = -sum_val / L.matrix[j][j]
+
+            # The inverse of the matrix is (L^T * L)^-1 = L^-1 * (L^-1)^T
+            inverse_matrix = L_inv.transpose() * L_inv
+            return inverse_matrix
+
+    def inv_6(self):
+        if self.shape == (6, 6):
+            pass
+
+        
+        
+
+        
+    # v = Vector(3,2,1,5)
+    # v[3] = 10
+    # print(v.modulus)

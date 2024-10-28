@@ -67,7 +67,8 @@ def qmc(iid, SCL, SDA) :
     time.sleep(0.0001)
     i2c.writeto_mem(QMC5883L_ADDR,RegCTRL1, ctrl1)
     i2c.writeto_mem(QMC5883L_ADDR,RegFBR, b'\x01')
-    buffer = i2c.readfrom_mem(QMC5883L_ADDR,RegXLo,6)   
+    buffer = i2c.readfrom_mem(QMC5883L_ADDR,RegXLo,6)
+    print(buffer)
     xLo = buffer[0]
     xHi = buffer[1] << 8
     yLo = buffer[2]
@@ -83,4 +84,11 @@ def qmc(iid, SCL, SDA) :
     z_mag = signed_int(z)/4096
     x_fin,y_fin,z_fin = calibration(x_mag,y_mag,z_mag)
     
-    return { 'x' : x_fin, 'y' : y_fin, 'z': z_fin}
+    #return { 'x' : x_fin, 'y' : y_fin, 'z': z_fin}, (x, y, z)
+    return xLo, xHi, yLo, yHi, zLo, zHi
+
+while True:
+    #bs = (qmc(0, 5, 4))[1]
+    #bx, by, bz = bs
+    print(qmc(0, 5, 4))
+    time.sleep(0.1)
