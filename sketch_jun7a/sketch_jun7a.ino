@@ -387,18 +387,44 @@ void setup() {
 
 void loop() {
   // Check if data is available to read
-  // if (Serial.available() > 0) {
-  //   // Read the incoming byte
-  //   char received = Serial.read();
+  if (Serial.available() > 0) {
+    // Read the incoming byte
+    char received = Serial.read();
     
-  //   // Send the received byte back
-  //   Serial.write(received);
-  // }
-  int16_t data = 123;  // Define the data as int16
+    // Send the received byte back
+    Serial.println(received);
+  }
+  else {
+    Serial.println("1,2,3");
+  }
+  // int16_t data = 123;  // Define the data as int16
   
-  // Send the data as raw binary (2 bytes)
-  Serial.println("1,2,3");
+  // // Send the data as raw binary (2 bytes)
+  // Serial.println("1,2,3");
+
+  // if (Serial.available()) {
+  //   String input = Serial.readStringUntil('\n'); // Read the incoming string until newline character
+  //   float values[3];
+  //   int i = 0;
+
+  //   // Parse the input string and split at commas
+  //   int commaIndex;
+  //   while ((commaIndex = input.indexOf(',')) != -1 && i < 3) {
+  //     values[i] = input.substring(0, commaIndex).toFloat();
+  //     values[i] *= 2; // Double the value
+  //     input = input.substring(commaIndex + 1);
+  //     i++;
+  //   }
+  //   values[i] = input.toFloat() * 2; // Last value after the last comma
+
+  //   // Output doubled values as comma-separated string
+  //   Serial.print(values[0]);
+  //   Serial.print(",");
+  //   Serial.print(values[1]);
+  //   Serial.print(",");
+  //   Serial.print(values[2]);
+  // }
 
   // Delay to control the rate of data transmission
-  delay(10);
+  delay(5);
 }
